@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using UnityEngine.InputSystem;
 
 public class PlayerMovement : MonoBehaviour
@@ -16,7 +17,9 @@ public class PlayerMovement : MonoBehaviour
     private float chargeTime = 0f;
     private bool isCharging = false;
     private bool isGrounded;
-    private bool canJump = true; // NEW: prevents holding jump from retriggering
+    private bool canJump = true; // prevents holding jump from going when it shouldnt
+
+    private bool isSnappingUpright = false;
 
     private void Awake()
     {
@@ -80,7 +83,44 @@ public class PlayerMovement : MonoBehaviour
             chargeTime += Time.deltaTime;
             chargeTime = Mathf.Min(chargeTime, maxChargeTime);
         }
+        if (isGrounded && !isCharging && !isSnappingUpright)
+        {
+            TrySnapUpright();
+        }
     }
+
+    private void TrySnapUpright()
+    {
+        float angle = transform.eulerAngles.z;
+
+        // Convert 0–360 to -180–180 for easier logic
+        if (angle > 180f)
+            angle -= 360f;
+
+        if (Mathf.Abs(angle) > 20f) // if tilted noticeably
+        {
+            StartCoroutine(SnapUprightRoutine());
+        }
+    }
+
+    private IEnumerator SnapUprightRoutine()
+    {
+        isSnappingUpright = true;
+
+        // Small hop to make it fun
+        body.AddForce(Vector2.up * 5f, ForceMode2D.Impulse); // adjust force as needed
+
+        yield return new WaitForSeconds(0.1f); // short delay to simulate hop
+
+        // Snap rotation upright (cartoony fast)
+        transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+
+        yield return new WaitForSeconds(0.1f); // delay to prevent it running again instantly
+
+        isSnappingUpright = false;
+    }
+
+
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
