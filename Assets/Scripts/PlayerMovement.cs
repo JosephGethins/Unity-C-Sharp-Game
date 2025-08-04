@@ -15,8 +15,8 @@ public class PlayerMovement : MonoBehaviour
 
     private float chargeTime = 0f;
     private bool isCharging = false;
-
     private bool isGrounded;
+    private bool canJump = true; // NEW: prevents holding jump from retriggering
 
     private void Awake()
     {
@@ -30,9 +30,8 @@ public class PlayerMovement : MonoBehaviour
 
         controls.Player.Jump.started += ctx =>
         {
-            //Debug.Log("Jump started");
-
-            if (isGrounded == true)
+            // Start charging only if grounded and jump was freshly pressed
+            if (isGrounded && canJump)
             {
                 anim.SetBool("IsCharging", true);
                 isCharging = true;
@@ -41,13 +40,13 @@ public class PlayerMovement : MonoBehaviour
                 // Reset vertical velocity ONLY at jump start to avoid velocity problems
                 Vector2 currentVel = body.linearVelocity;
                 body.linearVelocity = new Vector2(currentVel.x, 0f);
+
+                canJump = false; // block recharging until jump is released
             }
         };
 
         controls.Player.Jump.canceled += ctx =>
         {
-            //Debug.Log("Jump ended");
-
             if (isCharging)
             {
                 anim.SetBool("IsJumping", true);
@@ -59,17 +58,17 @@ public class PlayerMovement : MonoBehaviour
 
                 isCharging = false;
                 chargeTime = 0f;
-
-                isGrounded = false; // Player leaves ground on jump
+                isGrounded = false;
             }
-        };
 
+            // Reset charge flag and animator state
+            canJump = true;
+            anim.SetBool("IsCharging", false);
+        };
     }
 
     private void Update()
     {
-        //Debug.Log($"Velocity: {body.linearVelocity}");
-
         // Flip sprite based on input direction
         if (moveInput.x > 0.1f)
             transform.localScale = new Vector3(2, 2, 2);
@@ -81,7 +80,6 @@ public class PlayerMovement : MonoBehaviour
             chargeTime += Time.deltaTime;
             chargeTime = Mathf.Min(chargeTime, maxChargeTime);
         }
-
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -93,13 +91,13 @@ public class PlayerMovement : MonoBehaviour
             isGrounded = true;
             Debug.Log("Landed! isGrounded set to TRUE");
         }
-    
     }
 
     private void OnEnable()
     {
         controls.Enable();
     }
+
     private void OnDisable()
     {
         if (controls != null)
@@ -107,5 +105,4 @@ public class PlayerMovement : MonoBehaviour
             controls.Disable();
         }
     }
-
 }
