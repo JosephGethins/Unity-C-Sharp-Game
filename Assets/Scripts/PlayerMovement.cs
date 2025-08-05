@@ -18,8 +18,9 @@ public class PlayerMovement : MonoBehaviour
     private bool isCharging = false;
     private bool isGrounded;
     private bool canJump = true; // prevents holding jump from going when it shouldnt
-
     private bool isSnappingUpright = false;
+    private bool isStunned = false; // disables input and movement
+
 
     private void Awake()
     {
@@ -72,6 +73,8 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
+         if (isStunned) return; // skip everything if stunned
+
         // Flip sprite based on input direction
         if (moveInput.x > 0.1f)
             transform.localScale = new Vector3(2, 2, 2);
@@ -82,10 +85,6 @@ public class PlayerMovement : MonoBehaviour
         {
             chargeTime += Time.deltaTime;
             chargeTime = Mathf.Min(chargeTime, maxChargeTime);
-        }
-        if (isGrounded && !isCharging && !isSnappingUpright)
-        {
-            TrySnapUpright();
         }
     }
 
@@ -108,7 +107,7 @@ public class PlayerMovement : MonoBehaviour
         isSnappingUpright = true;
 
         // Small hop to make it fun
-        body.AddForce(Vector2.up * 5f, ForceMode2D.Impulse); // adjust force as needed
+        body.AddForce(Vector2.up * 1f, ForceMode2D.Impulse); // adjust force as needed
 
         yield return new WaitForSeconds(0.1f); // short delay to simulate hop
 
@@ -130,8 +129,47 @@ public class PlayerMovement : MonoBehaviour
         {
             isGrounded = true;
             Debug.Log("Landed! isGrounded set to TRUE");
+
+         float angle = transform.eulerAngles.z;
+            if (angle > 180f) angle -= 360f;
+
+            if (Mathf.Abs(angle) > 40f) // adjust threshold as needed
+            {
+                StartCoroutine(StunnedThenRecoverRoutine());
+            }
         }
     }
+
+    private IEnumerator StunnedThenRecoverRoutine()
+    {
+     isStunned = true;
+      isSnappingUpright = true;
+
+      moveInput = Vector2.zero;
+
+      // Freeze motion (stops sliding)
+      body.linearVelocity = Vector2.zero;
+      body.angularVelocity = 0f;
+      body.constraints = RigidbodyConstraints2D.FreezeRotation | RigidbodyConstraints2D.FreezePositionX;
+
+       yield return new WaitForSeconds(0.5f); // stunned duration while laying sideways
+
+       body.AddForce(Vector2.up * 2f, ForceMode2D.Impulse); // cartoony hop
+
+      yield return new WaitForSeconds(0.1f);
+
+       transform.rotation = Quaternion.Euler(0f, 0f, 0f); // snap upright
+
+        yield return new WaitForSeconds(0.1f);
+
+        // Restore movement
+        body.constraints = RigidbodyConstraints2D.FreezeRotation;
+
+        isSnappingUpright = false;
+        isStunned = false;
+    }
+
+
 
     private void OnEnable()
     {
