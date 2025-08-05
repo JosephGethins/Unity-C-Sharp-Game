@@ -73,7 +73,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-         if (isStunned) return; // skip everything if stunned
+        if (isStunned) return; // skip everything if stunned
 
         // Flip sprite based on input direction
         if (moveInput.x > 0.1f)
@@ -87,39 +87,6 @@ public class PlayerMovement : MonoBehaviour
             chargeTime = Mathf.Min(chargeTime, maxChargeTime);
         }
     }
-
-    private void TrySnapUpright()
-    {
-        float angle = transform.eulerAngles.z;
-
-        // Convert 0–360 to -180–180 for easier logic
-        if (angle > 180f)
-            angle -= 360f;
-
-        if (Mathf.Abs(angle) > 20f) // if tilted noticeably
-        {
-            StartCoroutine(SnapUprightRoutine());
-        }
-    }
-
-    private IEnumerator SnapUprightRoutine()
-    {
-        isSnappingUpright = true;
-
-        // Small hop to make it fun
-        body.AddForce(Vector2.up * 1f, ForceMode2D.Impulse); // adjust force as needed
-
-        yield return new WaitForSeconds(0.1f); // short delay to simulate hop
-
-        // Snap rotation upright (cartoony fast)
-        transform.rotation = Quaternion.Euler(0f, 0f, 0f);
-
-        yield return new WaitForSeconds(0.1f); // delay to prevent it running again instantly
-
-        isSnappingUpright = false;
-    }
-
-
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
@@ -142,34 +109,32 @@ public class PlayerMovement : MonoBehaviour
 
     private IEnumerator StunnedThenRecoverRoutine()
     {
-     isStunned = true;
-      isSnappingUpright = true;
+        isStunned = true;
+        isSnappingUpright = true;
 
-      moveInput = Vector2.zero;
+        moveInput = Vector2.zero;
 
-      // Freeze motion (stops sliding)
-      body.linearVelocity = Vector2.zero;
-      body.angularVelocity = 0f;
-      body.constraints = RigidbodyConstraints2D.FreezeRotation | RigidbodyConstraints2D.FreezePositionX;
+        // Freeze motion (stops sliding)
+        body.linearVelocity = Vector2.zero;
+        body.angularVelocity = 0f;
+        body.constraints = RigidbodyConstraints2D.FreezeRotation | RigidbodyConstraints2D.FreezePositionX;
 
-       yield return new WaitForSeconds(0.5f); // stunned duration while laying sideways
+        yield return new WaitForSeconds(0.5f); // stunned duration while laying sideways
 
-       body.AddForce(Vector2.up * 2f, ForceMode2D.Impulse); // cartoony hop
-
-      yield return new WaitForSeconds(0.1f);
-
-       transform.rotation = Quaternion.Euler(0f, 0f, 0f); // snap upright
+        body.AddForce(Vector2.up * 2f, ForceMode2D.Impulse); // cartoony hop
 
         yield return new WaitForSeconds(0.1f);
 
-        // Restore movement
-        body.constraints = RigidbodyConstraints2D.FreezeRotation;
+        transform.rotation = Quaternion.Euler(0f, 0f, 0f); // snap upright
+
+        yield return new WaitForSeconds(0.1f);
+
+        // Restore rotation etc movement
+        body.constraints = RigidbodyConstraints2D.None;
 
         isSnappingUpright = false;
         isStunned = false;
     }
-
-
 
     private void OnEnable()
     {
