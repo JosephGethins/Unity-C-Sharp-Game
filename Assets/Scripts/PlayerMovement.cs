@@ -20,6 +20,7 @@ public class PlayerMovement : MonoBehaviour
     private bool canJump = true; // prevents holding jump from going when it shouldnt
     private bool isSnappingUpright = false;
     private bool isStunned = false; // disables input and movement
+    private bool isFrozen = false; // For ice levels maybe and also for the room transition
 
 
     private void Awake()
@@ -75,11 +76,13 @@ public class PlayerMovement : MonoBehaviour
     {
         if (isStunned) return; // skip everything if stunned
 
+        if (isFrozen) return;
+
         // Flip sprite based on input direction
         if (moveInput.x > 0.1f)
-            transform.localScale = new Vector3(2, 2, 2);
+            transform.localScale = new Vector3(1, 1, 1);
         else if (moveInput.x < -0.1f)
-            transform.localScale = new Vector3(-2, 2, 2);
+            transform.localScale = new Vector3(-1, 1, 1);
 
         if (isCharging)
         {
@@ -100,7 +103,7 @@ public class PlayerMovement : MonoBehaviour
          float angle = transform.eulerAngles.z;
             if (angle > 180f) angle -= 360f;
 
-            if (Mathf.Abs(angle) > 40f) // adjust threshold as needed
+            if (Mathf.Abs(angle) > 40f) // adjust threshold of the sprite if it didnt like go straight
             {
                 StartCoroutine(StunnedThenRecoverRoutine());
             }
@@ -119,7 +122,7 @@ public class PlayerMovement : MonoBehaviour
         body.angularVelocity = 0f;
         body.constraints = RigidbodyConstraints2D.FreezeRotation | RigidbodyConstraints2D.FreezePositionX;
 
-        yield return new WaitForSeconds(0.5f); // stunned duration while laying sideways
+        yield return new WaitForSeconds(1f); // stunned duration while laying sideways
 
         body.AddForce(Vector2.up * 2f, ForceMode2D.Impulse); // cartoony hop
 
@@ -134,6 +137,12 @@ public class PlayerMovement : MonoBehaviour
 
         isSnappingUpright = false;
         isStunned = false;
+    }
+
+    public void Freeze(bool freezeCheck)
+    {
+        isFrozen = freezeCheck;
+        body.linearVelocity = Vector2.zero;
     }
 
     private void OnEnable()
