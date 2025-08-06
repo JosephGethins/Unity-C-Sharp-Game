@@ -75,10 +75,11 @@ public class RoomManager : MonoBehaviour
         transitioning = true;
         player.Freeze(true); //The reference to the player script and then we use freeze from that script (Since I want to use freeze in diff scripts)
 
+        rooms[targetRoom].SetActive(true);
+
         Vector3 start = cameraTransform.position;
 
         Vector3 roomWorldPos = rooms[targetRoom].transform.position;
-        //Vector3 end = new Vector3(targetRoom.x * (320f / 48f), targetRoom.y * (180f / 48f), start.z); // Size of the new room * PPU 
         Vector3 end = new Vector3(roomWorldPos.x, roomWorldPos.y, cameraTransform.position.z);
 
         float elapsed = 0f;
@@ -86,15 +87,19 @@ public class RoomManager : MonoBehaviour
         {
             elapsed += Time.deltaTime; // Look up more about delta time
             float t = elapsed / cameraMoveTime;
+            t = t * t * (3f - 2f * t); // SmoothStep-like easing
             cameraTransform.position = Vector3.Lerp(start, end, t); // A smooth transition with interpolation percent of t (Look up a bit more about this)
             yield return null;
         }
 
+        // Activate the new room and deactivate the old one
+        // Slight change, put camera transform in the middle sinze the next room wasnt active during transition but only active after
+        // so this should hopefully allow the player to not get stuck in limbo between rooms
+        //rooms[targetRoom].SetActive(true);
+
         cameraTransform.position = end;
 
-         // Activate the new room and deactivate the old one
         rooms[currentRoom].SetActive(false);
-        rooms[targetRoom].SetActive(true);
 
         //Need this line because it broke and only set on old room
         currentRoom = targetRoom; 

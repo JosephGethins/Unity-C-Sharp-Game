@@ -21,6 +21,7 @@ public class PlayerMovement : MonoBehaviour
     private bool isSnappingUpright = false;
     private bool isStunned = false; // disables input and movement
     private bool isFrozen = false; // For ice levels maybe and also for the room transition
+    private Vector2 savedVelocity; // I want Celeste style "If jumping through a exit screen transition, contine the jump after the freeze"
 
 
     private void Awake()
@@ -142,7 +143,21 @@ public class PlayerMovement : MonoBehaviour
     public void Freeze(bool freezeCheck)
     {
         isFrozen = freezeCheck;
-        body.linearVelocity = Vector2.zero;
+
+        if (freezeCheck == true)
+        {
+            savedVelocity = body.linearVelocity; // Save my current velocity
+            body.linearVelocity = Vector2.zero; // Set it to zero so it looks like my player is frozen in time while screens change
+            body.bodyType = RigidbodyType2D.Kinematic; // This was grabbed from online so explanation so I dont forget below:
+            // Kinematic stops gravity and physics from interfering while the player is frozen mid-air. 
+            // If you just set velocity = 0 and freeze movement, Unity’s gravity will pull them down unless you disable physics.
+        }
+        else
+        {
+            body.bodyType = RigidbodyType2D.Dynamic; // Opposite of kinematic (Gives player all their physics back)
+            body.linearVelocity = savedVelocity;
+        }
+        
     }
 
     private void OnEnable()
