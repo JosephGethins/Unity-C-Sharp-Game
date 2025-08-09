@@ -13,6 +13,10 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] public float maxJumpForce = 750f;
     [SerializeField] public float maxChargeTime = 1f;
     [SerializeField] public float maxSideForce = 400f;
+    [SerializeField] public float bounceMagnitude = 3f; // how hard you bounce back horizontally
+    [SerializeField] public float VerticalBounce = 10f;     // extra upward push on bounce
+    [SerializeField] public float HorizontalBounce = 10f;     // extra upward push on bounce
+
 
     private float chargeTime = 0f;
     private bool isCharging = false;
@@ -22,6 +26,7 @@ public class PlayerMovement : MonoBehaviour
     private bool isStunned = false; // disables input and movement
     private bool isFrozen = false; // For ice levels maybe and also for the room transition
     private Vector2 savedVelocity; // I want Celeste style "If jumping through a exit screen transition, contine the jump after the freeze"
+    bool inputFrozen = false;
 
 
     private void Awake()
@@ -96,12 +101,21 @@ public class PlayerMovement : MonoBehaviour
     {
         anim.SetBool("IsJumping", false);
 
+        if (collision.gameObject.tag == "Wall")
+        {
+            if (isGrounded == false)
+            {
+                Debug.Log("Hit a Wall and bounced!");
+                TriggerWallBounce(collision);
+            }
+        }
+
         if (collision.gameObject.tag == "Solid")
         {
             isGrounded = true;
             Debug.Log("Landed! isGrounded set to TRUE");
 
-         float angle = transform.eulerAngles.z;
+            float angle = transform.eulerAngles.z;
             if (angle > 180f) angle -= 360f;
 
             if (Mathf.Abs(angle) > 40f) // adjust threshold of the sprite if it didnt like go straight
@@ -109,6 +123,43 @@ public class PlayerMovement : MonoBehaviour
                 StartCoroutine(StunnedThenRecoverRoutine());
             }
         }
+    }
+
+    void TriggerWallBounce(Collision2D collision)
+    {
+        Debug.Log("TriggerWallBounce called!");
+        inputFrozen = true;
+
+        Vector2 wallNormal = collision.contacts[0].normal;
+
+        float horizontalBounce = Mathf.Sign(wallNormal.x);
+
+        Vector2 bounceVelocity = new Vector2(horizontalBounce * HorizontalBounce, VerticalBounce * 5f);
+
+        body.bodyType = RigidbodyType2D.Dynamic;
+        body.constraints = RigidbodyConstraints2D.None;
+
+        // Reset velocity so no old velocity lingers
+        body.linearVelocity = Vector2.zero;
+
+        body.linearVelocity = bounceVelocity;
+        //body.AddForce(bounceVelocity, ForceMode2D.Impulse);
+
+        Debug.Log($"Bounce Velocity Set: {bounceVelocity}, actual velocity: {body.linearVelocity}");
+        Debug.Log($"Wall Normal: {wallNormal}, horizontalBounce: {horizontalBounce}");
+
+
+        StartCoroutine(WaitUntilGroundedThenUnfreeze());
+    }
+
+    private IEnumerator WaitUntilGroundedThenUnfreeze()
+    {
+        while (isGrounded == false)
+        {
+            yield return null;
+        }
+
+        inputFrozen = false;
     }
 
     private IEnumerator StunnedThenRecoverRoutine()
