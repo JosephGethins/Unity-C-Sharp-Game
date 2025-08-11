@@ -10,10 +10,11 @@ public class RoomManager : MonoBehaviour
     public Transform cameraTransform;
     public PlayerMovement player;
     public float cameraMoveTime = 0.5f;
-
+    public float cameraFollowSpeed = 5f;
     private bool transitioning = false;
+    public bool followPlayer = false;
+    private Bounds currentRoomBounds;
     private Vector2Int currentRoom = Vector2Int.zero;
-
      // Store room GameObjects by their grid coordinate this way I can keep track of the X and Y position using whole integers
     private Dictionary<Vector2Int, GameObject> rooms = new Dictionary<Vector2Int, GameObject>();
 
@@ -41,6 +42,37 @@ public class RoomManager : MonoBehaviour
         }
     }
 
+    private void LateUpdate() //Ensures it will go off AFTER the like main update part (Bult in?)
+    {
+        if (followPlayer)
+        {
+            Vector3 targetPos = player.transform.position;
+            targetPos.z = cameraTransform.position.z;
+
+            if (currentRoomBounds != null) // store this when entering a room
+            {
+                Camera cam = Camera.main;
+                float camHeight = cam.orthographicSize;
+                float camWidth = camHeight * cam.aspect;
+
+                Bounds b = currentRoomBounds.bounds; // Dumb error here about my variable and .bounds
+
+                targetPos.x = Mathf.Clamp(targetPos.x,
+                                          b.min.x + camWidth,
+                                          b.max.x - camWidth);
+                targetPos.y = Mathf.Clamp(targetPos.y,
+                                          b.min.y + camHeight,
+                                          b.max.y - camHeight);
+            }
+
+            cameraTransform.position = Vector3.Lerp(
+                cameraTransform.position,
+                targetPos,
+                Time.deltaTime * cameraMoveTime
+            );
+        }
+    }
+
     private Vector2Int ParseRoomCoord(string name)
     {
         // Taking the second Room for example
@@ -53,7 +85,7 @@ public class RoomManager : MonoBehaviour
         return new Vector2Int(x, y);
     }
 
-    public void MoveRoom(Vector2Int newRoom)
+    public void MoveRoom(Vector2Int newRoom, bool followCamera)
     {
         if (transitioning)
         {
@@ -67,10 +99,22 @@ public class RoomManager : MonoBehaviour
             return;
         }
 
-        StartCoroutine(SlideCameraToRoom(newRoom));
+        // Update bounds from BoxCollider2D
+        BoxCollider2D boundsCollider = rooms[newRoom].GetComponent<BoxCollider2D>();
+        if (boundsCollider != null)
+        {
+            currentRoomBounds = boundsCollider.bounds;
+        }
+        else
+        {
+            Debug.LogWarning("Room " + newRoom + " has no BoxCollider2D for bounds!");
+        }
+
+        followPlayer = false; // it would follow during transition so added this so it lags behind still
+        StartCoroutine(SlideCameraToRoom(newRoom, followCamera));
     }
 
-    private IEnumerator SlideCameraToRoom(Vector2Int targetRoom)
+    private IEnumerator SlideCameraToRoom(Vector2Int targetRoom, bool followCamera)
     {
         transitioning = true;
         player.Freeze(true); //The reference to the player script and then we use freeze from that script (Since I want to use freeze in diff scripts)
@@ -102,10 +146,13 @@ public class RoomManager : MonoBehaviour
         rooms[currentRoom].SetActive(false);
 
         //Need this line because it broke and only set on old room
-        currentRoom = targetRoom; 
+        currentRoom = targetRoom;
 
         // Unfreeze player (Celeste style)
-        player.Freeze(false); 
+        player.Freeze(false);
+
+        followPlayer = followCamera;
+
         transitioning = false;
     }
 }
